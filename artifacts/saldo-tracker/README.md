@@ -246,9 +246,13 @@ android:usesCleartextTraffic="false"
 **Kotlin (`MainActivity.kt`):**
 
 ```kotlin
+import android.app.DownloadManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.webkit.*
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -272,19 +276,31 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
 
+        // Tombol Back — navigasi di dalam WebView (API 33+ compat, tanpa onBackPressed deprecated)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         // Download listener — diperlukan untuk tombol Export JSON
         webView.setDownloadListener { url, _, _, mimetype, _ ->
             try {
-                val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                val request = DownloadManager.Request(Uri.parse(url))
                 request.setMimeType(mimetype)
                 request.setNotificationVisibility(
-                    android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
                 )
                 request.setDestinationInExternalPublicDir(
-                    android.os.Environment.DIRECTORY_DOWNLOADS,
+                    Environment.DIRECTORY_DOWNLOADS,
                     "SaldoTracker-backup.json"
                 )
-                val dm = getSystemService(DOWNLOAD_SERVICE) as android.app.DownloadManager
+                val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
                 dm.enqueue(request)
                 Toast.makeText(this, "Menyimpan file backup...", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
@@ -293,15 +309,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.loadUrl("file:///android_asset/www/index.html")
-    }
-
-    // Tombol Back kembali ke halaman sebelumnya di WebView
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
     }
 }
 ```
@@ -315,6 +322,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.webkit.*;
 import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
@@ -330,14 +338,27 @@ public class MainActivity extends AppCompatActivity {
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);       // Wajib untuk localStorage
-        settings.setAllowFileAccess(true);          // Wajib untuk file:// assets
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setDatabaseEnabled(true);
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient());
+
+        // Tombol Back — navigasi di dalam WebView (API 33+ compat)
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
 
         // Download listener — diperlukan untuk tombol Export JSON
         webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
@@ -359,15 +380,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
         webView.loadUrl("file:///android_asset/www/index.html");
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
     }
 }
 ```
@@ -601,6 +613,80 @@ Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRI
 
 ## Troubleshooting
 
+### ❌ Generate Signed APK Gagal
+
+Ini masalah paling umum. Cek satu per satu:
+
+#### 1. Belum buat keystore
+```bash
+keytool -genkey -v \
+  -keystore saldo-tracker.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias saldo-tracker-key
+```
+Simpan file `.jks` dan password. **Jangan di-commit ke Git.**
+
+#### 2. Signing config di `build.gradle (Module: app)` belum benar
+Buka `app/build.gradle`, pastikan ada blok ini (ganti nilai `storeFile`, password, dan alias sesuai keystore kamu):
+
+```gradle
+android {
+    ...
+    signingConfigs {
+        release {
+            storeFile     file("/Users/namaKamu/saldo-tracker.jks")   // ← path ABSOLUT lebih aman
+            storePassword "isiPasswordKamu"
+            keyAlias      "saldo-tracker-key"
+            keyPassword   "isiPasswordKamu"
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false        // ← Nonaktifkan dulu untuk APK pertama
+            signingConfig signingConfigs.release
+        }
+    }
+}
+```
+
+> **Tips:** Gunakan path **absolut** untuk `storeFile` — path relatif sering menyebabkan error `FileNotFoundException`.
+
+> **Tips:** Gunakan `minifyEnabled false` untuk APK pertama. ProGuard (`minifyEnabled true`) memerlukan konfigurasi tambahan dan sering menjadi penyebab kegagalan tersembunyi.
+
+#### 3. `onBackPressed()` deprecated (API 33+, Android 13+)
+Jika `targetSdk` 33 atau lebih, kode `override fun onBackPressed()` yang lama akan menyebabkan warning/error di beberapa konfigurasi Gradle. **Gunakan kode `OnBackPressedCallback` yang ada di bagian MainActivity di atas** — sudah diperbarui.
+
+#### 4. Gradle sync gagal / dependency tidak ditemukan
+Cek `build.gradle` level project dan module:
+- `compileSdk` minimal 34
+- `targetSdk` minimal 33
+- `androidx.activity:activity-ktx` atau `androidx.appcompat:appcompat` sudah include `OnBackPressedCallback`
+
+```gradle
+// app/build.gradle
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}
+```
+
+#### 5. Dist belum di-copy ke `assets/www/`
+APK akan **build berhasil** tapi app layar putih jika `assets/www/` kosong atau berisi file lama.
+
+Selalu jalankan ini sebelum build APK:
+```bash
+pnpm --filter @workspace/saldo-tracker run build:apk
+cp -r artifacts/saldo-tracker/dist/public/* app/src/main/assets/www/
+```
+
+#### 6. Pesan error "Keystore file not found" atau "Wrong password"
+- Pastikan path di `storeFile` benar dan file `.jks` ada
+- Password di `storePassword` dan `keyPassword` harus sama persis seperti saat membuat keystore
+
+---
+
+### Troubleshooting Umum
+
 | Masalah | Solusi |
 |---|---|
 | Layar putih saat buka APK | Pastikan `dist/public/` sudah di-copy ke `assets/www/`, dan `setAllowFileAccess(true)` aktif |
@@ -608,7 +694,7 @@ Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRI
 | Import file tidak bisa dipilih | Pastikan `setAllowFileAccess(true)` dan `setAllowContentAccess(true)` aktif |
 | Data hilang setelah update APK | Data localStorage aman selama package name tidak berubah |
 | Data hilang setelah reinstall | Normal — backup dengan Export JSON sebelum uninstall |
-| Build Vite gagal: "PORT not set" | Build tidak memerlukan PORT. Jalankan langsung: `BASE_PATH=./ npx vite build --config vite.config.ts` |
+| Build Vite gagal di Node 18/20 | Sudah diperbaiki — gunakan versi terbaru dari Replit. Atau: `BASE_PATH=./ npx vite build --config vite.config.ts` |
 | Asset path salah (404 di WebView) | Pastikan build menggunakan `pnpm run build:apk` (sudah include `BASE_PATH=./`) |
 | Layar putih di Android 7 ke bawah | Update WebView di Google Play Store, atau naikkan minSdkVersion ke 26 |
 

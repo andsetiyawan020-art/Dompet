@@ -115,18 +115,11 @@ function formatCalcNumber(n: number): string {
  * Format the raw JS expression string for display only — no logic change.
  * Each number token gets thousand-separator dots (Indonesian locale).
  * Operator symbols * and / are replaced with × and ÷ for readability.
- * Examples:
- *   "100000"          → "100.000"
- *   "100000+50000"    → "100.000+50.000"
- *   "1500000*12"      → "1.500.000×12"
  */
 function formatDisplayExpression(expr: string): string {
   if (!expr) return '0';
   return expr
     .replace(/(\d+(?:\.\d*)?)/g, (match) => {
-      // Preserve trailing dot — user is mid-way through typing a decimal.
-      // In id-ID format the decimal separator is a comma, so display "1.000,"
-      // instead of dropping the dot entirely.
       const hasTrailingDot = match.endsWith('.');
       const n = parseFloat(match);
       if (isNaN(n)) return match;
@@ -137,12 +130,101 @@ function formatDisplayExpression(expr: string): string {
     .replace(/\//g, '÷');
 }
 
-/** Safe expression evaluator using only +, -, *, / */
-function evaluateExpression(expr: string): number {
-  // Only allow digits, operators, dots, spaces
-  if (!/^[\d+\-*/.() ]+$/.test(expr)) throw new Error('Invalid expression');
-  // eslint-disable-next-line no-new-func
-  return Function('"use strict"; return (' + expr + ')')() as number;
+// ============================================================
+// Safe Expression Evaluator — no eval() / new Function()
+// Supports: +  -  *  /  ( )  decimal numbers
+// ============================================================
+
+/**
+ * Recursive-descent parser for arithmetic expressions.
+ * Grammar:
+ *   expr   → term   (('+' | '-') term)*
+ *   term   → factor (('*' | '/') factor)*
+ *   factor → NUMBER | '(' expr ')'
+ */
+function evaluateExpression(raw: string): number {
+  const src = raw.trim();
+  if (!src) throw new Error('Empty expression');
+
+  // Only allow digits, operators, parentheses, dots, spaces
+  if (!/^[\d+\-*/.() ]+$/.test(src)) throw new Error('Invalid characters');
+
+  let pos = 0;
+
+  function peek(): string { return src[pos] ?? ''; }
+  function consume(): string { return src[pos++] ?? ''; }
+
+  function skipSpaces(): void {
+    while (pos < src.length && src[pos] === ' ') pos++;
+  }
+
+  function parseNumber(): number {
+    skipSpaces();
+    let numStr = '';
+    if (peek() === '-') { numStr += consume(); }
+    while (pos < src.length && /[\d.]/.test(src[pos])) {
+      numStr += consume();
+    }
+    if (!numStr || numStr === '-') throw new Error('Expected number at ' + pos);
+    const n = parseFloat(numStr);
+    if (isNaN(n)) throw new Error('Invalid number: ' + numStr);
+    return n;
+  }
+
+  function parseFactor(): number {
+    skipSpaces();
+    if (peek() === '(') {
+      consume(); // '('
+      const val = parseExpr();
+      skipSpaces();
+      if (peek() === ')') consume();
+      return val;
+    }
+    return parseNumber();
+  }
+
+  function parseTerm(): number {
+    let left = parseFactor();
+    skipSpaces();
+    while (peek() === '*' || peek() === '/') {
+      const op = consume();
+      const right = parseFactor();
+      if (op === '*') left *= right;
+      else {
+        if (right === 0) throw new Error('Division by zero');
+        left /= right;
+      }
+      skipSpaces();
+    }
+    return left;
+  }
+
+  function parseExpr(): number {
+    let left = parseTerm();
+    skipSpaces();
+    while (peek() === '+' || (peek() === '-' && src[pos - 1] !== undefined && !/[\d)]/.test(src[pos - 1]) === false)) {
+      // Only treat '-' as binary subtraction when preceded by digit or ')'
+      if (peek() === '-' && pos > 0 && /[\d)]/.test(src[pos - 1])) {
+        consume();
+        const right = parseTerm();
+        left -= right;
+      } else if (peek() === '+') {
+        consume();
+        const right = parseTerm();
+        left += right;
+      } else {
+        break;
+      }
+      skipSpaces();
+    }
+    return left;
+  }
+
+  const result = parseExpr();
+  if (pos < src.length && src.slice(pos).trim() !== '') {
+    throw new Error('Unexpected token at ' + pos + ': ' + src.slice(pos));
+  }
+  return result;
 }
 
 export function getCalculatorHTML(): string {

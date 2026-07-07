@@ -1,5 +1,9 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { defineConfig, type Plugin } from 'vite';
+
+// import.meta.dirname is Node 21+ only. Use fileURLToPath for Node 18/20 compat.
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /**
  * Vite plugin: removes type="module" and crossorigin from built HTML so the
@@ -39,7 +43,7 @@ export default defineConfig({
     ...(process.env.NODE_ENV !== 'production' && process.env.REPL_ID !== undefined
       ? [
           await import('@replit/vite-plugin-cartographer').then((m) =>
-            m.cartographer({ root: path.resolve(import.meta.dirname, '..') }),
+            m.cartographer({ root: path.resolve(__dirname, '..') }),
           ),
           await import('@replit/vite-plugin-dev-banner').then((m) =>
             m.devBanner(),
@@ -49,12 +53,12 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(import.meta.dirname, 'src'),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
-  root: path.resolve(import.meta.dirname),
+  root: path.resolve(__dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
+    outDir: path.resolve(__dirname, 'dist/public'),
     emptyOutDir: true,
     // IIFE format produces a classic <script> (no type="module") so the bundle
     // loads on Android WebView API 26+ (Chrome 60+, Android 8.0+) without

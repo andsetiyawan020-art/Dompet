@@ -31,9 +31,6 @@ export function initApp(): void {
   renderNav();
   initCalculator();
 
-  // Dark mode toggle
-  document.getElementById('btn-dark-mode')?.addEventListener('click', toggleDarkMode);
-
   // Global navigate function used by inline onclick handlers
   window.navigate = navigate;
 

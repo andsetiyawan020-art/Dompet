@@ -231,6 +231,9 @@ function handleSubmit(editId: string | null): void {
     ? computePendapatan(saldoHariIni, saldoKemarin, pengeluaran, tanggal, editId)
     : 0;
 
+  // Preserve original createdAt when editing so sort/aggregation order stays stable
+  const existingEntry = editId ? getEntryById(editId) : null;
+
   const entry: SaldoEntry = {
     id:         editId ?? generateId(),
     tanggal,
@@ -240,7 +243,7 @@ function handleSubmit(editId: string | null): void {
     pendapatan,
     kategori:   kategori || 'Lainnya',
     catatan:    catatan.trim(),
-    createdAt:  new Date().toISOString(),
+    createdAt:  existingEntry?.createdAt ?? new Date().toISOString(),
   };
 
   if (editId) {

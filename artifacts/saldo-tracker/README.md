@@ -158,6 +158,12 @@ Output ada di: `artifacts/saldo-tracker/dist/public/`
 ```
 dist/public/
 ├── index.html          ← <script src="./assets/..."> (classic, tanpa type="module")
+├── app-icon.png        ← ikon App Bar gambar_1 (80×80 px PNG)
+├── icon-192.png        ← ikon PWA (192×192 px PNG, crop persegi gambar_1)
+├── icon-512.png        ← ikon PWA besar (512×512 px PNG, crop persegi gambar_1)
+├── gambar_1.png        ← alias icon-192.png — siap pakai untuk Image Asset Studio
+├── splash.jpg          ← splash screen gambar_2 (752×1392 px JPEG)
+├── manifest.json       ← PWA manifest (ikon, warna tema, display mode)
 ├── favicon.svg
 ├── robots.txt
 └── assets/
@@ -207,10 +213,15 @@ Hasil akhir struktur Android Studio:
 ```
 app/src/main/assets/www/
 ├── index.html
-├── favicon.svg
+├── app-icon.png        ← ikon App Bar (gambar_1, 80×80 px)
+├── icon-192.png        ← ikon PWA / manifest (gambar_1, 192×192 px)
+├── icon-512.png        ← ikon PWA besar (gambar_1, 512×512 px)
+├── gambar_1.png        ← alias icon-192.png — siap pakai untuk Image Asset Studio
+├── splash.jpg          ← splash screen (gambar_2, 752×1392 px)
+├── manifest.json
+├── robots.txt
 └── assets/
-    ├── main-[hash].js
-    └── main-[hash].css
+    └── index-[hash].js ← JS + CSS dalam satu bundle IIFE
 ```
 
 ### 3. Tambahkan Permission di `AndroidManifest.xml`
@@ -361,7 +372,90 @@ public class MainActivity extends AppCompatActivity {
 }
 ```
 
-### 5. Update Layout `activity_main.xml`
+### 5. Ganti Launcher Icon Android Native (Wajib)
+
+> **Mengapa perlu langkah ini?**  
+> App Bar dan Splash Screen diganti melalui web app (di `assets/www/`).  
+> Tapi **ikon di layar utama HP (launcher icon)** diambil dari resource Android native (`res/mipmap-*`),  
+> **bukan** dari file web. Jika langkah ini dilewati, ikon di homescreen tetap menggunakan ikon bawaan Android Studio (robot hijau).
+
+#### A. Siapkan file sumber
+
+File `gambar_1.png` sudah tersedia di:
+```
+artifacts/saldo-tracker/dist/public/gambar_1.png   ← gunakan ini
+```
+atau `artifacts/saldo-tracker/public/gambar_1.png` (sumber, sebelum build).
+
+Ini adalah crop persegi dari gambar_1, ukuran 192×192 px, format PNG — langsung siap untuk Image Asset Studio.
+
+#### B. Buka Image Asset Studio di Android Studio
+
+1. Di panel **Project**, klik kanan pada folder `app/src/main/res/`
+2. Pilih **New → Image Asset**
+3. Wizard **Configure Image Asset** terbuka
+
+#### C. Konfigurasi ikon
+
+| Field | Nilai |
+|---|---|
+| **Icon Type** | Launcher Icons (Adaptive and Legacy) |
+| **Name** | `ic_launcher` |
+| **Asset Type** | Image |
+| **Path** | Klik ikon folder → pilih `gambar_1.png` dari `dist/public/` |
+| **Scaling → Trim** | Yes |
+| **Scaling → Resize** | 100% (atau sesuaikan agar gambar tidak terpotong berlebihan) |
+
+Tab **Foreground Layer:**
+- Source Asset → Image → pilih `gambar_1.png`
+- Scaling: geser hingga ikon terlihat pas di dalam preview lingkaran
+
+Tab **Background Layer:**
+- Source Asset → Color → pilih warna biru `#1E88E5` (warna tema aplikasi)
+- Ini memastikan tampilan ikon "adaptive" di Android 8+ terlihat bersih
+
+4. Klik **Next** → pastikan preview semua ukuran terlihat benar
+5. Klik **Finish**
+
+#### D. Hasil yang dihasilkan otomatis oleh Android Studio
+
+Image Asset Studio akan membuat/mengganti file-file berikut:
+
+```
+app/src/main/res/
+├── mipmap-mdpi/
+│   ├── ic_launcher.png          ← 48×48 px
+│   └── ic_launcher_round.png    ← 48×48 px (bulat)
+├── mipmap-hdpi/
+│   ├── ic_launcher.png          ← 72×72 px
+│   └── ic_launcher_round.png
+├── mipmap-xhdpi/
+│   ├── ic_launcher.png          ← 96×96 px
+│   └── ic_launcher_round.png
+├── mipmap-xxhdpi/
+│   ├── ic_launcher.png          ← 144×144 px
+│   └── ic_launcher_round.png
+├── mipmap-xxxhdpi/
+│   ├── ic_launcher.png          ← 192×192 px
+│   └── ic_launcher_round.png
+└── mipmap-anydpi-v26/
+    ├── ic_launcher.xml          ← Adaptive icon (Android 8+)
+    └── ic_launcher_round.xml
+```
+
+> **Setelah selesai:** Rebuild APK → install ke perangkat. Launcher icon di homescreen akan berubah ke `gambar_1`.
+
+#### E. Verifikasi di perangkat
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Tekan lama ikon aplikasi di homescreen → ikon harus menampilkan gambar_1 (dompet koin biru).
+
+---
+
+### 6. Update Layout `activity_main.xml`
 
 Buka `app/src/main/res/layout/activity_main.xml` dan ganti isinya:
 
@@ -522,12 +616,23 @@ Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRI
 
 ## Checklist Sebelum Distribusi
 
+### Build & Copy
 - [ ] Gunakan `pnpm run build:apk` (bukan `build` biasa)
-- [ ] `dist/public/` sudah di-copy ke `assets/www/`
+- [ ] `dist/public/` sudah di-copy ke `assets/www/` (termasuk `gambar_1.png`, `splash.jpg`, `icon-192.png`)
 - [ ] `setJavaScriptEnabled(true)` aktif
 - [ ] `setDomStorageEnabled(true)` aktif
 - [ ] `setAllowFileAccess(true)` aktif
 - [ ] `setDownloadListener` dikonfigurasi
+
+### Launcher Icon Native (Wajib — lihat panduan di atas)
+- [ ] Image Asset Studio sudah dijalankan dengan `gambar_1.png` sebagai sumber
+- [ ] File `res/mipmap-*/ic_launcher.png` sudah terganti (bukan robot hijau bawaan)
+- [ ] Launcher icon di homescreen HP sudah menampilkan gambar_1 setelah install APK
+
+### Testing
+- [ ] Splash screen (gambar_2) muncul sebentar saat app pertama dibuka
+- [ ] App Bar menampilkan ikon gambar_1 di sebelah kiri judul "Saldo Tracker"
+- [ ] Launcher icon di homescreen menampilkan gambar_1 (dompet koin biru)
 - [ ] APK sudah di-test di perangkat nyata
 - [ ] Export → Import JSON sudah dicoba di perangkat Android
 - [ ] Semua halaman (Dashboard, Tambah, Riwayat, Statistik) berfungsi offline

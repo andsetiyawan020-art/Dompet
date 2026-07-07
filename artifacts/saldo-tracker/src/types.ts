@@ -9,8 +9,8 @@ export interface SaldoEntry {
   pengeluaran: number;   // This entry's expense
   saldoHariIni: number;  // Today's closing balance (0 = not yet set)
   pendapatan: number;    // Auto-calculated at day level (0 if saldoHariIni not set)
-  kategori: string;      // Expense category
-  catatan: string;       // Notes
+  kategori: string;      // Kept for backward compatibility with old data; not used in new UI
+  catatan: string;       // Expense name / notes (free text)
   createdAt: string;     // ISO timestamp
 }
 
@@ -34,25 +34,3 @@ export interface AppState {
   darkMode: boolean;
   editingId: string | null;
 }
-
-export const KATEGORI_LIST = [
-  'Makanan & Minuman',
-  'Transportasi',
-  'Belanja',
-  'Kesehatan',
-  'Pendidikan',
-  'Hiburan',
-  'Tagihan & Utilitas',
-  'Lainnya',
-];
-
-export const KATEGORI_ICONS: Record<string, string> = {
-  'Makanan & Minuman': '🍽️',
-  'Transportasi': '🚗',
-  'Belanja': '🛍️',
-  'Kesehatan': '💊',
-  'Pendidikan': '📚',
-  'Hiburan': '🎮',
-  'Tagihan & Utilitas': '💡',
-  'Lainnya': '📌',
-};

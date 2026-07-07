@@ -10,15 +10,12 @@ export function renderDashboard(): string {
   const allEntries = getEntries();
   const todayStr   = today();
 
-  // Day-level summary for today (aggregates all entries for today)
-  const todaySummary = getDaySummary(todayStr);
-
-  // If today has no entries, show the most recent day's summary instead
-  const todayHasData  = allEntries.some(e => e.tanggal === todayStr);
-  const recentSummaries = getDaySummariesFromEntries(allEntries); // sorted desc
+  const todaySummary   = getDaySummary(todayStr);
+  const todayHasData   = allEntries.some(e => e.tanggal === todayStr);
+  const recentSummaries = getDaySummariesFromEntries(allEntries);
   const displayed: DaySummary | null = todayHasData ? todaySummary : (recentSummaries[0] ?? null);
 
-  const saldoKemarin    = displayed?.saldoKemarin     ?? 0;
+  const saldoKemarin     = displayed?.saldoKemarin     ?? 0;
   const totalPengeluaran = displayed?.totalPengeluaran ?? 0;
   const pendapatan       = displayed?.pendapatan       ?? 0;
   const saldoHariIni     = displayed?.saldoHariIni     ?? 0;
@@ -30,15 +27,12 @@ export function renderDashboard(): string {
 
   const saldoDisplay = hasSaldo
     ? formatRupiah(saldoHariIni)
-    : '<span style="font-size:18px;opacity:.8">Menunggu Saldo Hari Ini</span>';
+    : '<span style="font-size:18px;opacity:.8">Belum diisi</span>';
 
-  const pendapatanDisplay = hasSaldo
-    ? formatRupiah(pendapatan)
-    : '—';
+  const pendapatanDisplay = hasSaldo ? formatRupiah(pendapatan) : '—';
 
-  // Selisih Saldo = Saldo Hari Ini - Saldo Kemarin
-  const selisihSaldo = hasSaldo ? saldoHariIni - saldoKemarin : null;
-  const selisihClass = selisihSaldo === null ? '' : selisihSaldo > 0 ? 'positive' : selisihSaldo < 0 ? 'negative' : '';
+  const selisihSaldo  = hasSaldo ? saldoHariIni - saldoKemarin : null;
+  const selisihClass  = selisihSaldo === null ? '' : selisihSaldo > 0 ? 'positive' : selisihSaldo < 0 ? 'negative' : '';
   const selisihPrefix = selisihSaldo === null ? '' : selisihSaldo > 0 ? '+' : '';
   const selisihDisplay = selisihSaldo === null
     ? '—'
@@ -115,13 +109,12 @@ function renderEmptyState(): string {
 
 function renderRecentList(summaries: DaySummary[]): string {
   const rows = summaries.map(s => {
-    const saldoStr    = s.hasSaldo ? formatRupiah(s.saldoHariIni) : '—';
-    const pendSign    = s.pendapatan >= 0 ? '▲' : '▼';
-    const pendClass   = s.pendapatan >= 0 ? 'positive' : 'negative';
-    const pendStr     = s.hasSaldo
+    const saldoStr  = s.hasSaldo ? formatRupiah(s.saldoHariIni) : '—';
+    const pendSign  = s.pendapatan >= 0 ? '▲' : '▼';
+    const pendClass = s.pendapatan >= 0 ? 'positive' : 'negative';
+    const pendStr   = s.hasSaldo
       ? `${pendSign} ${formatRupiah(Math.abs(s.pendapatan))}`
-      : 'Menunggu SHI';
-    // For kategori, we show total pengeluaran of the day
+      : 'Belum diisi';
     const expStr = escHtml(`Pengeluaran: ${formatRupiah(s.totalPengeluaran)}`);
 
     return `
@@ -136,8 +129,7 @@ function renderRecentList(summaries: DaySummary[]): string {
           ${pendStr}
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
   }).join('');
 
   return `

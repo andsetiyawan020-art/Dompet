@@ -53,6 +53,12 @@ export function deleteEntry(id: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
 }
 
+/** Delete ALL entries for a specific date (used when user deletes a whole day) */
+export function deleteAllDayEntries(tanggal: string): void {
+  const entries = getEntries().filter(e => e.tanggal !== tanggal);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
 // ---- Day-Level Aggregation ----------------------------------
 
 /** Get all entries for a specific date */
@@ -75,13 +81,55 @@ export function getDaySaldoHariIni(dateStr: string): number {
 }
 
 /**
- * Check if a date already has a closing entry (saldoHariIni > 0).
- * Optionally exclude one entry by id (used when editing).
+ * Update or set the Saldo Hari Ini for a specific date.
+ * - If a closing entry (saldoHariIni > 0) exists for that date, update it.
+ * - Otherwise, set saldoHariIni on the most recent entry for that date.
+ * Recalculates pendapatan automatically.
  */
-export function hasDayClosingEntry(dateStr: string, excludeId?: string): boolean {
-  return getDayEntries(dateStr).some(
-    e => e.saldoHariIni > 0 && e.id !== excludeId
-  );
+export function updateOrSetDaySHI(tanggal: string, shi: number): void {
+  const allEntries = getEntries();
+  const totalPe = allEntries
+    .filter(e => e.tanggal === tanggal)
+    .reduce((s, e) => s + e.pengeluaran, 0);
+
+  const closingIdx = allEntries.findIndex(e => e.tanggal === tanggal && e.saldoHariIni > 0);
+  if (closingIdx !== -1) {
+    const e = allEntries[closingIdx];
+    allEntries[closingIdx] = {
+      ...e,
+      saldoHariIni: shi,
+      pendapatan: shi - e.saldoKemarin + totalPe,
+    };
+  } else {
+    // Set SHI on the most recent entry for this date
+    const dayEntries = allEntries
+      .filter(e => e.tanggal === tanggal)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (dayEntries.length > 0) {
+      const latestIdx = allEntries.findIndex(e => e.id === dayEntries[0].id);
+      const e = allEntries[latestIdx];
+      allEntries[latestIdx] = {
+        ...e,
+        saldoHariIni: shi,
+        pendapatan: shi - e.saldoKemarin + totalPe,
+      };
+    }
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(allEntries));
+}
+
+/** Clear (remove) the Saldo Hari Ini for a specific date */
+export function clearDaySHI(tanggal: string): void {
+  const allEntries = getEntries();
+  const closingIdx = allEntries.findIndex(e => e.tanggal === tanggal && e.saldoHariIni > 0);
+  if (closingIdx !== -1) {
+    allEntries[closingIdx] = {
+      ...allEntries[closingIdx],
+      saldoHariIni: 0,
+      pendapatan: 0,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allEntries));
+  }
 }
 
 /**
@@ -106,7 +154,7 @@ export function getDaySummary(dateStr: string): DaySummary {
     closingEntry?.saldoKemarin ??
     (entries.length > 0 ? entries[entries.length - 1].saldoKemarin : 0);
 
-  // Pendapatan formula (new): SHI - SK + Total Pengeluaran Hari Ini
+  // Pendapatan formula: SHI - SK + Total Pengeluaran Hari Ini
   const pendapatan = hasSaldo
     ? saldoHariIni - saldoKemarin + totalPengeluaran
     : 0;
@@ -135,25 +183,11 @@ export function getLastEntry(): SaldoEntry | null {
  * Only considers closing entries (saldoHariIni > 0).
  */
 export function getLastSaldoHariIni(beforeDate: string): number {
-  // Ascending order: last one before beforeDate with SHI > 0
   const candidates = getEntriesAsc().filter(
     e => e.tanggal < beforeDate && e.saldoHariIni > 0
   );
   if (candidates.length === 0) return 0;
   return candidates[candidates.length - 1].saldoHariIni;
-}
-
-/**
- * @deprecated Use getLastSaldoHariIni instead.
- * Kept for backward compatibility.
- */
-export function getLastEntryBefore(dateStr: string): SaldoEntry | null {
-  const entries = getEntriesAsc();
-  let result: SaldoEntry | null = null;
-  for (const e of entries) {
-    if (e.tanggal < dateStr) result = e;
-  }
-  return result;
 }
 
 /** Get entries for a specific month (YYYY-MM) */
@@ -176,14 +210,6 @@ export function getAvailableYears(): string[] {
 export function getAvailableMonths(): string[] {
   const months = new Set(getEntries().map(e => e.tanggal.slice(0, 7)));
   return [...months].sort((a, b) => b.localeCompare(a));
-}
-
-/**
- * @deprecated Multiple entries per date are now allowed.
- * Only used for closing-entry duplicate check.
- */
-export function entryExistsForDate(dateStr: string, excludeId?: string): boolean {
-  return getEntries().some(e => e.tanggal === dateStr && e.id !== excludeId);
 }
 
 /** Sum pengeluaran for a date, excluding one specific entry by id */
@@ -232,11 +258,12 @@ export function importDataJSON(json: string): { ok: boolean; message: string; co
       }
       // Coerce and sanitize optional fields
       if (typeof e.pendapatan !== 'number') e.pendapatan = 0;
-      if (typeof e.kategori !== 'string' || e.kategori.length > 100) e.kategori = 'Lainnya';
+      // kategori kept for backward compat but not required in new data
+      if (typeof e.kategori !== 'string') e.kategori = '';
+      e.kategori = e.kategori.replace(/<[^>]*>/g, '').slice(0, 100);
       if (typeof e.catatan !== 'string') e.catatan = '';
       // Strip HTML tags from user text fields to prevent stored XSS
-      e.kategori = e.kategori.replace(/<[^>]*>/g, '').slice(0, 100);
-      e.catatan  = e.catatan.replace(/<[^>]*>/g, '').slice(0, 500);
+      e.catatan = e.catatan.replace(/<[^>]*>/g, '').slice(0, 500);
       if (typeof e.createdAt !== 'string') e.createdAt = new Date().toISOString();
     }
 

@@ -216,7 +216,7 @@ function renderSelisih(summaries: DaySummary[]): string {
     const selisihClass  = selisih === null ? '' : selisih > 0 ? 'positive' : selisih < 0 ? 'negative' : '';
     const selisihPrefix = selisih !== null && selisih > 0 ? '+' : '';
     const selisihStr    = selisih === null
-      ? '<span class="text-muted-sm">Menunggu SHI</span>'
+      ? '<span class="text-muted-sm">Belum diisi</span>'
       : `<span class="${selisihClass}">${selisihPrefix}${formatRupiah(selisih)}</span>`;
 
     return `

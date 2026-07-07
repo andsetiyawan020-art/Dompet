@@ -1,0 +1,1 @@
+- [Saldo Tracker data model v2](saldo-tracker-data-model.md) — multi-entry-per-day, saldoHariIni=0 means "not set", always use getDaySummary() for day-level reads.

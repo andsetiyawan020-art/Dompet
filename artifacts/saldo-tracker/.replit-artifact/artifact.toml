@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Saldo Tracker"
+version = "1.0.0"
+id = "artifacts/saldo-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18431
+
+[services.development]
+run = "pnpm --filter @workspace/saldo-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/saldo-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/saldo-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18431"
+BASE_PATH = "/"

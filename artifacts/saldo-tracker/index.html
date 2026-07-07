@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Aplikasi pencatatan saldo harian — catat pengeluaran dan hitung pendapatan otomatis." />
+  <meta name="theme-color" content="#1E88E5" />
+
+  <!-- Android WebView & PWA Meta -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Saldo Tracker" />
+
+  <title>Saldo Tracker</title>
+
+  <!-- Prevent FOUC on dark mode -->
+  <script>
+    (function () {
+      try {
+        const s = localStorage.getItem('saldo_tracker_settings');
+        if (s && JSON.parse(s).darkMode) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (_) {}
+    })();
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Header -->
+    <header id="app-header" class="app-header"></header>
+
+    <!-- Main scrollable content -->
+    <main id="main-content" class="main-content" role="main"></main>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav" role="navigation" aria-label="Navigasi utama"></nav>
+  </div>
+
+  <!-- App entry point -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

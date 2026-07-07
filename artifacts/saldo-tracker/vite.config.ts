@@ -1,5 +1,22 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+
+/**
+ * Vite plugin: removes type="module" and crossorigin from built HTML so the
+ * IIFE bundle loads as a classic <script> on Android WebView without needing
+ * ES-module support (required for API < 61 / Chrome < 61).
+ */
+function stripModuleType(): Plugin {
+  return {
+    name: 'strip-module-type',
+    enforce: 'post',
+    transformIndexHtml(html: string) {
+      return html
+        .replace(/ type="module"/g, '')
+        .replace(/ crossorigin/g, '');
+    },
+  };
+}
 
 // PORT is required for the Replit dev server but not for `vite build`.
 // Outside Replit (e.g. local build for Android Studio), fall back to 5173.
@@ -14,6 +31,11 @@ const basePath = process.env.BASE_PATH ?? './';
 export default defineConfig({
   base: basePath,
   plugins: [
+    // Strip type="module" / crossorigin from built HTML (production only).
+    // This makes the IIFE bundle load as a classic script on all WebView versions.
+    ...(process.env.NODE_ENV === 'production' ? [stripModuleType()] : []),
+
+    // Replit dev-only plugins (never included in production build).
     ...(process.env.NODE_ENV !== 'production' && process.env.REPL_ID !== undefined
       ? [
           await import('@replit/vite-plugin-cartographer').then((m) =>
@@ -34,6 +56,17 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
+    // IIFE format produces a classic <script> (no type="module") so the bundle
+    // loads on Android WebView API 26+ (Chrome 60+, Android 8.0+) without
+    // requiring ES-module support. Chrome 60 supports for-of, destructuring,
+    // async/await, template literals — all syntax used in this app.
+    target: 'chrome60',
+    rollupOptions: {
+      output: {
+        format: 'iife',
+        name: 'SaldoTrackerApp',
+      },
+    },
   },
   server: {
     port,

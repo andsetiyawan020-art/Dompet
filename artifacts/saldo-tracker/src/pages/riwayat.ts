@@ -2,7 +2,7 @@
 // Riwayat (History) Page
 // ============================================================
 
-import { getEntries, deleteEntry } from '../storage';
+import { getEntries, deleteEntry, clearAllData, exportDataJSON, importDataJSON } from '../storage';
 import { formatRupiah, formatDateShort, showToast, escHtml } from '../utils';
 import { KATEGORI_LIST, KATEGORI_ICONS } from '../types';
 import type { SaldoEntry } from '../types';
@@ -192,14 +192,12 @@ export function initRiwayat(): void {
   // Clear all
   document.getElementById('btn-clear-all')?.addEventListener('click', () => {
     if (confirm('Hapus SEMUA data? Aksi ini tidak bisa dibatalkan.')) {
-      import('../storage').then(({ clearAllData }) => {
-        clearAllData();
-        searchQuery    = '';
-        filterKategori = '';
-        filterMonth    = '';
-        rerender();
-        showToast('Semua data dihapus.', 'info');
-      });
+      clearAllData();
+      searchQuery    = '';
+      filterKategori = '';
+      filterMonth    = '';
+      rerender();
+      showToast('Semua data dihapus.', 'info');
     }
   });
 
@@ -262,7 +260,6 @@ export function initRiwayat(): void {
 // ---- Export -------------------------------------------------
 
 async function handleExport(): Promise<void> {
-  const { exportDataJSON } = await import('../storage');
   const json = exportDataJSON();
   const dateStr = new Date().toISOString().slice(0, 10);
   const filename = `SaldoTracker-${dateStr}.json`;
@@ -309,15 +306,13 @@ function handleImport(e: Event): void {
 
   const reader = new FileReader();
   reader.onload = () => {
-    import('../storage').then(({ importDataJSON }) => {
-      const result = importDataJSON(reader.result as string);
-      if (result.ok) {
-        showToast(result.message, 'success');
-        window.navigate('riwayat');
-      } else {
-        showToast(result.message, 'error');
-      }
-    });
+    const result = importDataJSON(reader.result as string);
+    if (result.ok) {
+      showToast(result.message, 'success');
+      window.navigate('riwayat');
+    } else {
+      showToast(result.message, 'error');
+    }
   };
   reader.readAsText(file);
   // Reset so the same file can be re-imported if needed

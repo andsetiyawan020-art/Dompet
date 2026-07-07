@@ -157,12 +157,14 @@ Output ada di: `artifacts/saldo-tracker/dist/public/`
 
 ```
 dist/public/
-├── index.html
+├── index.html          ← <script src="./assets/..."> (classic, tanpa type="module")
 ├── favicon.svg
+├── robots.txt
 └── assets/
-    ├── main-[hash].js
-    └── main-[hash].css
+    └── index-[hash].js ← JS + CSS semuanya dalam satu file (IIFE bundle)
 ```
+
+> **Catatan:** CSS sudah di-embed ke dalam bundle JS (IIFE format). Tidak ada file `.css` terpisah — ini normal dan diinginkan untuk APK WebView.
 
 Verifikasi: Buka `dist/public/index.html` di browser lokal (drag & drop ke Chrome) — semua fitur harus berjalan tanpa server.
 
@@ -464,12 +466,15 @@ Upload ke Google Play Console melalui **Production → Releases → Create new r
 ### Kompatibilitas Android
 | Fitur | Min Android |
 |---|---|
-| WebView JS + localStorage | API 21 (Android 5.0) |
-| `showSaveFilePicker` (save dialog) | API 30+ (Chrome 86+) |
+| Bundle IIFE (classic script, tanpa ES module) | API 21+ (WebView diupdate via Google Play) |
+| Syntax JS yang digunakan (async/await, destructuring) | Chrome 60+ = API 26 natively; API 24+ via Play Store update |
+| localStorage (DOM Storage) | API 21 (Android 5.0) |
+| `showSaveFilePicker` (save dialog ke File Manager) | Chrome 86+ / API 30+ |
 | Fallback `<a download>` via DownloadManager | API 21+ |
-| `<input type="file">` (import) | API 21+ |
+| `<input type="file">` (import dari File Manager) | API 21+ |
 
-> Direkomendasikan target minimum **API 24 (Android 7.0)** untuk pengalaman terbaik.
+> Direkomendasikan target minimum **API 26 (Android 8.0)** untuk garansi penuh tanpa bergantung pada update WebView.  
+> Direkomendasikan **API 24+ dengan WebView diupdate** untuk jangkauan lebih luas.
 
 ### Jika Export Tidak Muncul di File Manager
 Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRITE_EXTERNAL_STORAGE. Tambahkan permission request di `MainActivity` menggunakan `ActivityCompat.requestPermissions()`.
@@ -510,13 +515,14 @@ Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRI
 | Data hilang setelah update APK | Data localStorage aman selama package name tidak berubah |
 | Data hilang setelah reinstall | Normal — backup dengan Export JSON sebelum uninstall |
 | Build Vite gagal: "PORT not set" | Build tidak memerlukan PORT. Jalankan langsung: `BASE_PATH=./ npx vite build --config vite.config.ts` |
-| Asset path salah (404 di WebView) | Pastikan build menggunakan `BASE_PATH=./` bukan `BASE_PATH=/` |
+| Asset path salah (404 di WebView) | Pastikan build menggunakan `pnpm run build:apk` (sudah include `BASE_PATH=./`) |
+| Layar putih di Android 7 ke bawah | Update WebView di Google Play Store, atau naikkan minSdkVersion ke 26 |
 
 ---
 
 ## Checklist Sebelum Distribusi
 
-- [ ] `BASE_PATH=./` digunakan saat build
+- [ ] Gunakan `pnpm run build:apk` (bukan `build` biasa)
 - [ ] `dist/public/` sudah di-copy ke `assets/www/`
 - [ ] `setJavaScriptEnabled(true)` aktif
 - [ ] `setDomStorageEnabled(true)` aktif

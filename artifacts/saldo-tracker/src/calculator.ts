@@ -51,7 +51,7 @@ function handleButton(action: string): void {
 
   if (action === 'delete') {
     expression = expression.slice(0, -1);
-    updateDisplay(expression || '0', '');
+    updateDisplay(expression ? formatDisplayExpression(expression) : '0', '');
     return;
   }
 
@@ -99,7 +99,7 @@ function handleButton(action: string): void {
     expression += action;
   }
 
-  updateDisplay(expression, '');
+  updateDisplay(formatDisplayExpression(expression), '');
 }
 
 function updateDisplay(value: string, expr: string): void {
@@ -109,6 +109,32 @@ function updateDisplay(value: string, expr: string): void {
 
 function formatCalcNumber(n: number): string {
   return new Intl.NumberFormat('id-ID').format(n);
+}
+
+/**
+ * Format the raw JS expression string for display only — no logic change.
+ * Each number token gets thousand-separator dots (Indonesian locale).
+ * Operator symbols * and / are replaced with × and ÷ for readability.
+ * Examples:
+ *   "100000"          → "100.000"
+ *   "100000+50000"    → "100.000+50.000"
+ *   "1500000*12"      → "1.500.000×12"
+ */
+function formatDisplayExpression(expr: string): string {
+  if (!expr) return '0';
+  return expr
+    .replace(/(\d+(?:\.\d*)?)/g, (match) => {
+      // Preserve trailing dot — user is mid-way through typing a decimal.
+      // In id-ID format the decimal separator is a comma, so display "1.000,"
+      // instead of dropping the dot entirely.
+      const hasTrailingDot = match.endsWith('.');
+      const n = parseFloat(match);
+      if (isNaN(n)) return match;
+      const formatted = new Intl.NumberFormat('id-ID').format(n);
+      return hasTrailingDot ? formatted + ',' : formatted;
+    })
+    .replace(/\*/g, '×')
+    .replace(/\//g, '÷');
 }
 
 /** Safe expression evaluator using only +, -, *, / */

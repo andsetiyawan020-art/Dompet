@@ -1,1 +1,2 @@
 - [Saldo Tracker data model v2](saldo-tracker-data-model.md) — multi-entry-per-day, saldoHariIni=0 means "not set", always use getDaySummary() for day-level reads.
+- [Saldo Tracker Android build config](saldo-tracker-android-build.md) — use build:apk script; BASE_PATH=./ is critical for WebView file:// loading; WebView needs setDomStorageEnabled + setDownloadListener.

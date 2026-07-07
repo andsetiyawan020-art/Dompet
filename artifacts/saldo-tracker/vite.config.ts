@@ -1,20 +1,15 @@
 import path from 'path';
 import { defineConfig } from 'vite';
 
+// PORT is required for the Replit dev server but not for `vite build`.
+// Outside Replit (e.g. local build for Android Studio), fall back to 5173.
 const rawPort = process.env.PORT;
+const port = rawPort ? Number(rawPort) : 5173;
 
-if (!rawPort) {
-  throw new Error('PORT environment variable is required but was not provided.');
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-// BASE_PATH defaults to '/' so the built dist works in Android Studio WebView
-const basePath = process.env.BASE_PATH ?? '/';
+// BASE_PATH defaults to './' so asset references are always relative.
+// Relative paths are required for Android WebView (file:///android_asset/www/).
+// Override with BASE_PATH=/ only when serving from a web server root.
+const basePath = process.env.BASE_PATH ?? './';
 
 export default defineConfig({
   base: basePath,

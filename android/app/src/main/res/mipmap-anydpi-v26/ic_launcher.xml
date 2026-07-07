@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon (Android 8.0+):
+    - Background: warna biru tema #1E88E5
+    - Foreground: ic_launcher_foreground.png (gambar_1, center-crop dengan padding safe zone)
+    Sistem Android memotong dalam bentuk lingkaran/kotak/squircle sesuai launcher.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

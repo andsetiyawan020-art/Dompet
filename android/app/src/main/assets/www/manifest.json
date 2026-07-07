@@ -1,0 +1,24 @@
+{
+  "name": "Saldo Tracker",
+  "short_name": "Saldo",
+  "description": "Aplikasi pencatatan saldo harian — catat pengeluaran dan hitung pendapatan otomatis.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1E88E5",
+  "theme_color": "#1E88E5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -81,7 +81,7 @@ function renderNav(): void {
   if (header) {
     header.innerHTML = `
       <div class="header-brand">
-        <span class="header-icon">💰</span>
+        <img class="header-icon" src="./app-icon.png" alt="" aria-hidden="true" />
         <span class="header-title">Saldo Tracker</span>
       </div>
       <button id="btn-dark-mode" class="btn-icon" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">

@@ -3,18 +3,18 @@
  *
  * Copies artifacts/saldo-tracker/dist/public/ → android/app/src/main/assets/www/
  *
- * Cross-platform (Windows, macOS, Linux) — no shell commands, pure Node.js fs.
+ * Cross-platform (Windows, macOS, Linux) — pure Node.js fs, no shell commands.
  *
  * Usage:
  *   node scripts/sync-android-assets.mjs
  *
- * Or via npm scripts in root package.json:
- *   pnpm run sync:android          # copy only (dist must already exist)
- *   pnpm run build:android         # build web bundle then copy
+ * Or via root package.json scripts:
+ *   pnpm run sync:android     — copy only (dist must already exist)
+ *   pnpm run build:android    — build web bundle then copy
  */
 
-import { cpSync, rmSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { resolve, join, dirname } from 'path';
+import { cpSync, rmSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -31,8 +31,7 @@ if (!existsSync(SRC)) {
   process.exit(1);
 }
 
-const indexHtml = join(SRC, 'index.html');
-if (!existsSync(indexHtml)) {
+if (!existsSync(join(SRC, 'index.html'))) {
   console.error('\n❌  dist/public/index.html missing — build may have failed.\n');
   process.exit(1);
 }
@@ -42,20 +41,36 @@ console.log(`\n📦  Syncing web bundle → Android assets`);
 console.log(`    FROM: ${SRC}`);
 console.log(`    TO:   ${DEST}\n`);
 
-rmSync(DEST, { recursive: true, force: true });
-mkdirSync(DEST, { recursive: true });
-cpSync(SRC, DEST, { recursive: true });
+try {
+  rmSync(DEST, { recursive: true, force: true });
+  mkdirSync(DEST, { recursive: true });
+  cpSync(SRC, DEST, { recursive: true });
+} catch (err) {
+  console.error(`\n❌  Sync failed: ${err.message}\n`);
+  process.exit(1);
+}
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 function countFiles(dir) {
   let count = 0;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) count += countFiles(join(dir, entry.name));
-    else count++;
+  try {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) count += countFiles(join(dir, entry.name));
+      else count++;
+    }
+  } catch {
+    // ignore unreadable subdirs in count
   }
   return count;
 }
 
 const total = countFiles(DEST);
+
+// List JS bundle files without assuming an 'assets/' subfolder exists
+const assetsDir = join(DEST, 'assets');
+const bundleList = existsSync(assetsDir)
+  ? readdirSync(assetsDir).filter(f => f.endsWith('.js') || f.endsWith('.css')).join(', ')
+  : '(no assets/ subfolder)';
+
 console.log(`✅  Done — ${total} files copied to android/app/src/main/assets/www/`);
-console.log(`    JS bundle: ${readdirSync(join(DEST, 'assets')).join(', ')}\n`);
+if (bundleList) console.log(`    Bundle: ${bundleList}\n`);

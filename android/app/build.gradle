@@ -7,27 +7,34 @@ plugins {
 // Auto-sync web bundle: copies dist/public → assets/www before every APK build.
 // Run `pnpm run build:android` first to rebuild the web bundle, then build APK.
 // ─────────────────────────────────────────────────────────────────────────────
-task copyWebAssets(type: Copy) {
+task copyWebAssets {
+    // Paths are evaluated lazily (inside doFirst/doLast = execution phase, not config phase)
     def distDir = file("${rootProject.projectDir}/../artifacts/saldo-tracker/dist/public")
     def destDir = file("src/main/assets/www")
 
-    if (distDir.exists()) {
-        from distDir
-        into destDir
-        // Always overwrite — never use stale cache
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
-        doFirst {
-            delete destDir
-            println "📦 Copying web bundle: ${distDir} → ${destDir}"
+    doFirst {
+        // Fail fast at execution time — never silently use stale assets/www
+        if (!distDir.exists()) {
+            throw new GradleException(
+                "\n\n❌  Web bundle not found: ${distDir}\n" +
+                "   Build it first:\n" +
+                "     pnpm run build:android      (builds web bundle + syncs)\n" +
+                "   Or:\n" +
+                "     pnpm --filter @workspace/saldo-tracker run build:apk\n" +
+                "     node scripts/sync-android-assets.mjs\n"
+            )
         }
-        doLast {
-            println "✅ Web assets synced to assets/www"
+        println "📦 Copying web bundle: ${distDir} → ${destDir}"
+        delete destDir
+        copy {
+            from distDir
+            into destDir
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
         }
-    } else {
-        doFirst {
-            println "⚠️  dist/public not found — skipping web sync."
-            println "   Run: pnpm run build:android  (or pnpm --filter @workspace/saldo-tracker run build:apk)"
-        }
+    }
+
+    doLast {
+        println "✅ Web assets synced to assets/www"
     }
 }
 

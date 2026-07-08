@@ -384,6 +384,9 @@ public class MainActivity extends AppCompatActivity {
 }
 ```
 
+> **Catatan:** Kedua contoh di atas adalah setup dasar WebView untuk referensi jika membuat project Android baru dari nol.
+> `android/app/src/main/java/com/andsetiyawan/saldotracker/MainActivity.kt` di repo ini **sudah berisi implementasi final** dan lebih lengkap dari contoh di atas — termasuk `ExportBridge` (`window.AndroidExport`), sebuah JS-interface yang membuka dialog sistem **"Simpan ke..."** (`ACTION_CREATE_DOCUMENT` / Storage Access Framework) saat tombol **Export JSON** ditekan, alih-alih auto-download via `DownloadManager` ke folder Downloads. `setDownloadListener` tetap ada di file itu hanya sebagai fallback untuk skenario blob-download lain, bukan jalur utama Export JSON lagi. Gunakan file tersebut sebagai sumber kebenaran, jangan salin ulang contoh di atas ke project produksi.
+
 ### 5. Ganti Launcher Icon Android Native (Wajib)
 
 > **Mengapa perlu langkah ini?**  
@@ -566,8 +569,18 @@ Upload ke Google Play Console melalui **Production → Releases → Create new r
 ### Offline & Data Lokal
 - Seluruh data disimpan di **DOM Storage (localStorage)** WebView — data tidak hilang saat app ditutup
 - Uninstall app = data hilang; gunakan Export JSON sebelum uninstall
-- Export: tombol **Export JSON** di halaman Riwayat → tersimpan di folder Downloads
-- Import: tombol **Import JSON** → pilih file dari File Manager
+- Export: tombol **Export JSON** di halaman Riwayat → membuka dialog sistem **"Simpan ke..."** (Storage Access Framework / `ACTION_CREATE_DOCUMENT`), pengguna memilih sendiri lokasi (Unduhan, Penyimpanan Internal, SD Card, Google Drive, dll) dan nama file
+- Import: tombol **Import JSON** → pilih file dari File Manager (tidak berubah)
+
+### Export JSON via Storage Access Framework (Android)
+Tombol Export JSON di web (`riwayat.ts`) memanggil `window.AndroidExport.exportJson(json, filename)`, sebuah JS bridge (`@JavascriptInterface`) yang diekspos oleh `MainActivity.kt`. Alur:
+
+1. Native meluncurkan `ActivityResultContracts.CreateDocument("application/json")` — ini adalah dialog "Simpan ke..." bawaan Android (SAF), sama seperti yang dipakai Files/Downloads/Drive.
+2. Pengguna memilih lokasi & (opsional) mengubah nama file, lalu menekan Simpan.
+3. Native menulis konten JSON ke `Uri` hasil pilihan via `contentResolver.openOutputStream(uri)` — tidak menyentuh folder Downloads secara otomatis dan tidak memakai Share Intent.
+4. Native memanggil balik `window.__onAndroidExportResult(success, message, cancelled)` di WebView agar UI web bisa menampilkan toast sukses/gagal/batal.
+
+Di browser desktop (bukan APK), tombol Export tetap memakai `showSaveFilePicker` (jika tersedia) lalu fallback `<a download>` — perilaku ini tidak berubah.
 
 ### Kompatibilitas Android
 | Fitur | Min Android |
@@ -575,15 +588,13 @@ Upload ke Google Play Console melalui **Production → Releases → Create new r
 | Bundle IIFE (classic script, tanpa ES module) | API 21+ (WebView diupdate via Google Play) |
 | Syntax JS yang digunakan (async/await, destructuring) | Chrome 60+ = API 26 natively; API 24+ via Play Store update |
 | localStorage (DOM Storage) | API 21 (Android 5.0) |
-| `showSaveFilePicker` (save dialog ke File Manager) | Chrome 86+ / API 30+ |
-| Fallback `<a download>` via DownloadManager | API 21+ |
+| Export via SAF `ACTION_CREATE_DOCUMENT` (`AndroidExport` bridge) | API 19+ — tidak perlu permission storage, teruji untuk target Android 10–14 (API 29–34) |
+| `showSaveFilePicker` (fallback di browser desktop, bukan di APK) | Chrome 86+ |
 | `<input type="file">` (import dari File Manager) | API 21+ |
 
 > Direkomendasikan target minimum **API 26 (Android 8.0)** untuk garansi penuh tanpa bergantung pada update WebView.  
 > Direkomendasikan **API 24+ dengan WebView diupdate** untuk jangkauan lebih luas.
-
-### Jika Export Tidak Muncul di File Manager
-Perangkat Android lama (API < 23) kadang memerlukan permission runtime untuk WRITE_EXTERNAL_STORAGE. Tambahkan permission request di `MainActivity` menggunakan `ActivityCompat.requestPermissions()`.
+> `minSdk` project ini adalah 24 dan `targetSdk` 34 — sudah mencakup rentang Android 10–14 yang disyaratkan untuk fitur Export JSON.
 
 ---
 

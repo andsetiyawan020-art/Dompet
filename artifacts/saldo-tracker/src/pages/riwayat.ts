@@ -16,6 +16,7 @@ import {
   importDataJSON,
 } from '../storage';
 import { formatRupiah, formatNumber, formatDateShort, formatDate, showToast, escHtml, truncate } from '../utils';
+import { isAndroidExportAvailable, exportJsonViaAndroid } from '../androidExport';
 import type { SaldoEntry, DaySummary } from '../types';
 
 let searchQuery  = '';
@@ -517,6 +518,19 @@ async function handleExport(): Promise<void> {
   const json     = exportDataJSON();
   const dateStr  = new Date().toISOString().slice(0, 10);
   const filename = `SaldoTracker-${dateStr}.json`;
+
+  // Android WebView: use the native "Save to..." dialog (Storage Access
+  // Framework) so the user picks the destination themselves. No Share
+  // Intent, no auto-save to /Downloads.
+  if (isAndroidExportAvailable()) {
+    const result = await exportJsonViaAndroid(json, filename);
+    if (result.ok) {
+      showToast(result.message || 'Backup berhasil disimpan.', 'success');
+    } else if (!result.cancelled) {
+      showToast(result.message || 'Gagal menyimpan backup.', 'error');
+    }
+    return;
+  }
 
   if ('showSaveFilePicker' in window) {
     try {

@@ -9,28 +9,6 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Saldo Tracker"
-
-[[workflows.workflow]]
-name = "Saldo Tracker"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=5173 pnpm --filter @workspace/saldo-tracker run dev"
-waitForPort = 5173
 
 [agent]
 stack = "PNPM_WORKSPACE"

@@ -278,7 +278,10 @@ export function initRiwayat(): void {
   });
 
   // Export
-  document.getElementById('btn-export')?.addEventListener('click', handleExport);
+  document.getElementById('btn-export')?.addEventListener('click', () => {
+    console.log('[export] Export JSON button clicked');
+    void handleExport();
+  });
 
   // Import
   document.getElementById('btn-import')?.addEventListener('change', handleImport);
@@ -515,6 +518,7 @@ function closeDeleteModal(): void {
 // ============================================================
 
 async function handleExport(): Promise<void> {
+  console.log('[export] handleExport() entered');
   const json     = exportDataJSON();
   const dateStr  = new Date().toISOString().slice(0, 10);
   const filename = `SaldoTracker-${dateStr}.json`;
@@ -522,8 +526,13 @@ async function handleExport(): Promise<void> {
   // Android WebView: use the native "Save to..." dialog (Storage Access
   // Framework) so the user picks the destination themselves. No Share
   // Intent, no auto-save to /Downloads.
-  if (isAndroidExportAvailable()) {
+  const androidAvailable = isAndroidExportAvailable();
+  console.log('[export] isAndroidExportAvailable() =', androidAvailable, 'typeof window.AndroidExport =', typeof window.AndroidExport);
+
+  if (androidAvailable) {
+    console.log('[export] AndroidExport detected, calling exportJsonViaAndroid()', { filename, jsonLength: json.length });
     const result = await exportJsonViaAndroid(json, filename);
+    console.log('[export] exportJsonViaAndroid() resolved with', result);
     if (result.ok) {
       showToast(result.message || 'Backup berhasil disimpan.', 'success');
     } else if (!result.cancelled) {
@@ -531,6 +540,8 @@ async function handleExport(): Promise<void> {
     }
     return;
   }
+
+  console.log('[export] AndroidExport not available, falling back to web APIs');
 
   if ('showSaveFilePicker' in window) {
     try {

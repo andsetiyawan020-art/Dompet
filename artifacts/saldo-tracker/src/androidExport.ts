@@ -27,7 +27,9 @@ declare global {
 }
 
 export function isAndroidExportAvailable(): boolean {
-  return typeof window.AndroidExport?.exportJson === 'function';
+  const available = typeof window.AndroidExport?.exportJson === 'function';
+  console.log('[androidExport] isAndroidExportAvailable() =', available);
+  return available;
 }
 
 // Tracks whether a native SAF export is currently awaiting a result, so a
@@ -40,7 +42,10 @@ let exportInFlight = false;
  * resolves once the native side reports success, failure, or cancellation.
  */
 export function exportJsonViaAndroid(json: string, filename: string): Promise<AndroidExportResult> {
+  console.log('[androidExport] exportJsonViaAndroid() called', { filename, jsonLength: json.length, exportInFlight });
+
   if (exportInFlight) {
+    console.log('[androidExport] export already in flight, rejecting this call');
     return Promise.resolve({ ok: false, message: 'Ekspor sebelumnya masih berjalan.' });
   }
 
@@ -48,14 +53,18 @@ export function exportJsonViaAndroid(json: string, filename: string): Promise<An
 
   return new Promise((resolve) => {
     window.__onAndroidExportResult = (success: boolean, message: string, cancelled?: boolean) => {
+      console.log('[androidExport] __onAndroidExportResult callback fired', { success, message, cancelled });
       delete window.__onAndroidExportResult;
       exportInFlight = false;
       resolve({ ok: success, message, cancelled });
     };
 
     try {
+      console.log('[androidExport] invoking window.AndroidExport.exportJson(...) now');
       window.AndroidExport!.exportJson(json, filename);
+      console.log('[androidExport] window.AndroidExport.exportJson(...) call returned (native call is async)');
     } catch (err) {
+      console.error('[androidExport] window.AndroidExport.exportJson(...) threw synchronously', err);
       delete window.__onAndroidExportResult;
       exportInFlight = false;
       resolve({

@@ -3,6 +3,37 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-sync web bundle: copies dist/public → assets/www before every APK build.
+// Run `pnpm run build:android` first to rebuild the web bundle, then build APK.
+// ─────────────────────────────────────────────────────────────────────────────
+task copyWebAssets(type: Copy) {
+    def distDir = file("${rootProject.projectDir}/../artifacts/saldo-tracker/dist/public")
+    def destDir = file("src/main/assets/www")
+
+    if (distDir.exists()) {
+        from distDir
+        into destDir
+        // Always overwrite — never use stale cache
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        doFirst {
+            delete destDir
+            println "📦 Copying web bundle: ${distDir} → ${destDir}"
+        }
+        doLast {
+            println "✅ Web assets synced to assets/www"
+        }
+    } else {
+        doFirst {
+            println "⚠️  dist/public not found — skipping web sync."
+            println "   Run: pnpm run build:android  (or pnpm --filter @workspace/saldo-tracker run build:apk)"
+        }
+    }
+}
+
+// Wire into the normal Gradle build lifecycle
+preBuild.dependsOn copyWebAssets
+
 android {
     namespace 'com.andsetiyawan.saldotracker'
     compileSdk 34

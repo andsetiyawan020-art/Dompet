@@ -82,7 +82,7 @@ function renderNav(): void {
     header.innerHTML = `
       <div class="header-brand">
         <img class="header-icon" src="./app-icon.png" alt="" aria-hidden="true" />
-        <span class="header-title">Saldo Tracker</span>
+        <span class="header-title">Dompet</span>
       </div>
       <button id="btn-dark-mode" class="btn-icon" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">
         <span id="dark-icon">🌙</span>
